@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { HiDocumentText, HiEye, HiFilter } from 'react-icons/hi';
-import { submissionAPI } from '../../services/api';
+import api, { submissionAPI } from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
@@ -16,8 +16,12 @@ export default function MySubmissions() {
   const [filter, setFilter] = useState('all');
 
   // PDF modal state
-  const [pdfModal, setPdfModal] = useState({ open: false, url: '', title: '' });
-  const openPdf = (url, title) => setPdfModal({ open: true, url, title });
+  const [pdfModal, setPdfModal] = useState({ open: false, proxyUrl: '', directUrl: '', title: '' });
+  const openPdf = (directUrl, title, id) => {
+    const token = localStorage.getItem('gs_token');
+    const proxyUrl = `${api.defaults.baseURL}/submissions/${id}/file?token=${token}`;
+    setPdfModal({ open: true, proxyUrl, directUrl, title });
+  };
   const closePdf = () => setPdfModal(m => ({ ...m, open: false }));
 
   useEffect(() => {
@@ -39,7 +43,8 @@ export default function MySubmissions() {
       <PdfPreviewModal
         isOpen={pdfModal.open}
         onClose={closePdf}
-        pdfUrl={pdfModal.url}
+        proxyUrl={pdfModal.proxyUrl}
+        directUrl={pdfModal.directUrl}
         title={pdfModal.title}
       />
 
@@ -129,8 +134,8 @@ export default function MySubmissions() {
                     <td className="px-4 py-3">
                       {s.fileUrl ? (
                         <button
-                          onClick={() => openPdf(s.fileUrl, s.assignment?.title)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                          onClick={() => openPdf(s.fileUrl, s.assignment?.title, s._id)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-100/30 transition-colors"
                         >
                           <HiEye className="text-sm" />
                           View PDF
@@ -182,7 +187,7 @@ export default function MySubmissions() {
                 {/* PDF Button */}
                 {s.fileUrl && (
                   <button
-                    onClick={() => openPdf(s.fileUrl, s.assignment?.title)}
+                    onClick={() => openPdf(s.fileUrl, s.assignment?.title, s._id)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 transition-colors"
                   >
                     <HiEye className="text-sm" />

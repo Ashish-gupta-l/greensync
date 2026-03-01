@@ -3,12 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
 import {
     HiX, HiDownload, HiExternalLink, HiDocumentText,
-    HiChevronLeft, HiChevronRight, HiZoomIn, HiZoomOut
+    HiZoomIn, HiZoomOut
 } from 'react-icons/hi';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Use CDN worker for react-pdf v10
+// Use CDN worker — no local worker config needed
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 /**
@@ -16,25 +16,23 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pd
  * Props:
  *   isOpen      : boolean
  *   onClose     : () => void
- *   pdfUrl      : string  — direct Cloudinary fileUrl
- *   proxyUrl    : string  — optional server proxy URL (for auth-gated fetch)
+ *   proxyUrl    : string  — server-proxied URL  /api/submissions/:id/file?token=... (preferred)
+ *   directUrl   : string  — direct Cloudinary URL (fallback / download)
  *   title       : string
- *   studentName : string  (optional)
+ *   studentName : string  (optional, teacher view)
  */
-export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, title, studentName }) {
+export default function PdfPreviewModal({ isOpen, onClose, proxyUrl, directUrl, title, studentName }) {
     const [numPages, setNumPages] = useState(null);
-    const [pageNumber, setPageNumber] = useState(1);
     const [scale, setScale] = useState(1.2);
     const [pdfError, setPdfError] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    // Reset state when pdfUrl changes
+    // Reset when PDF source changes
     useEffect(() => {
         setNumPages(null);
-        setPageNumber(1);
         setPdfError(false);
         setLoading(true);
-    }, [pdfUrl]);
+    }, [proxyUrl, directUrl]);
 
     // Esc key close
     useEffect(() => {
@@ -55,18 +53,19 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
         setPdfError(false);
     }, []);
 
-    const onDocumentLoadError = useCallback(() => {
+    const onDocumentLoadError = useCallback((err) => {
+        console.error('[PdfPreviewModal] load error:', err);
         setPdfError(true);
         setLoading(false);
     }, []);
 
-    if (!pdfUrl && !proxyUrl) return null;
+    // Use proxy URL for rendering (server adds correct Content-Type headers)
+    // Fall back to directUrl if no proxy available
+    const renderUrl = proxyUrl || directUrl;
+    // Use proxy for download too (avoids Content-Type issues with raw Cloudinary)
+    const downloadUrl = proxyUrl || directUrl;
 
-    // PDF source: prefer proxyUrl (server-auth), fallback to direct Cloudinary URL
-    const pdfSource = proxyUrl || pdfUrl;
-
-    const canPrev = pageNumber > 1;
-    const canNext = pageNumber < (numPages || 1);
+    if (!renderUrl) return null;
 
     return (
         <AnimatePresence>
@@ -75,9 +74,7 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
                     {/* Backdrop */}
                     <motion.div
                         className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         onClick={onClose}
                     />
 
@@ -111,10 +108,10 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
                                 </div>
 
                                 <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
-                                    {/* Zoom out */}
+                                    {/* Zoom controls */}
                                     <button
                                         onClick={() => setScale(s => Math.max(0.6, +(s - 0.2).toFixed(1)))}
-                                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                         title="Zoom out"
                                     >
                                         <HiZoomOut />
@@ -122,10 +119,9 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
                                     <span className="text-xs text-gray-500 w-9 text-center font-mono select-none">
                                         {Math.round(scale * 100)}%
                                     </span>
-                                    {/* Zoom in */}
                                     <button
                                         onClick={() => setScale(s => Math.min(3, +(s + 0.2).toFixed(1)))}
-                                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                                         title="Zoom in"
                                     >
                                         <HiZoomIn />
@@ -133,9 +129,9 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
 
                                     <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1" />
 
-                                    {/* Download */}
+                                    {/* Download — uses proxy URL so Content-Type is correct */}
                                     <a
-                                        href={pdfUrl}
+                                        href={downloadUrl}
                                         download
                                         target="_blank"
                                         rel="noreferrer"
@@ -145,9 +141,9 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
                                         <span className="hidden sm:inline">Download</span>
                                     </a>
 
-                                    {/* New tab */}
+                                    {/* Open in new tab — uses proxy URL */}
                                     <a
-                                        href={pdfUrl}
+                                        href={downloadUrl}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -159,7 +155,7 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
                                     {/* Close */}
                                     <button
                                         onClick={onClose}
-                                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
+                                        className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
                                     >
                                         <HiX />
                                     </button>
@@ -168,52 +164,59 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
 
                             {/* ── PDF Viewer ── */}
                             <div className="flex-1 overflow-auto bg-gray-200 dark:bg-gray-800 relative">
+
                                 {/* Loading spinner */}
                                 {loading && !pdfError && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
                                         <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-3" />
                                         <p className="text-sm text-gray-500 dark:text-gray-400">Loading PDF...</p>
                                     </div>
                                 )}
 
-                                {/* Error state — fallback to direct link */}
+                                {/* Error fallback */}
                                 {pdfError && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
-                                        <div className="text-5xl">📄</div>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-8 text-center">
+                                        <div className="text-6xl">📄</div>
                                         <div>
-                                            <p className="font-semibold text-gray-800 dark:text-white mb-1">Cannot preview this PDF</p>
-                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                                                The file may be restricted. Use the buttons below to open it.
+                                            <p className="font-semibold text-gray-800 dark:text-white text-lg mb-2">
+                                                Cannot preview this PDF inline
+                                            </p>
+                                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
+                                                The PDF is accessible — use the buttons below to view or download it.
                                             </p>
                                             <div className="flex gap-3 justify-center flex-wrap">
                                                 <a
-                                                    href={pdfUrl}
+                                                    href={downloadUrl}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
+                                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors"
                                                 >
                                                     <HiExternalLink /> Open PDF in New Tab
                                                 </a>
                                                 <a
-                                                    href={pdfUrl}
+                                                    href={downloadUrl}
                                                     download
-                                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                                 >
-                                                    <HiDownload /> Download
+                                                    <HiDownload /> Download PDF
                                                 </a>
                                             </div>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* react-pdf Document */}
+                                {/* react-pdf renderer */}
                                 {!pdfError && (
                                     <div className="flex justify-center py-6 px-4 min-h-full">
                                         <Document
-                                            file={pdfSource}
+                                            file={renderUrl}
                                             onLoadSuccess={onDocumentLoadSuccess}
                                             onLoadError={onDocumentLoadError}
                                             loading={null}
+                                            options={{
+                                                httpHeaders: {},   // proxy URL has token in query param already
+                                                withCredentials: false,
+                                            }}
                                             className="flex flex-col items-center gap-4"
                                         >
                                             {numPages && Array.from({ length: numPages }, (_, idx) => (
@@ -223,7 +226,7 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
                                                     scale={scale}
                                                     renderTextLayer={true}
                                                     renderAnnotationLayer={true}
-                                                    className="shadow-lg rounded-lg overflow-hidden"
+                                                    className="shadow-2xl rounded-lg overflow-hidden"
                                                 />
                                             ))}
                                         </Document>
@@ -231,22 +234,13 @@ export default function PdfPreviewModal({ isOpen, onClose, pdfUrl, proxyUrl, tit
                                 )}
                             </div>
 
-                            {/* ── Footer: Page info ── */}
-                            {numPages && numPages > 1 && (
-                                <div className="px-5 py-2.5 border-t border-gray-100 dark:border-gray-800 flex items-center justify-center gap-4 flex-shrink-0">
-                                    <span className="text-xs text-gray-400">
-                                        {numPages} pages · Scroll to read all · <kbd className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">Esc</kbd> to close
-                                    </span>
-                                </div>
-                            )}
-
-                            {numPages === 1 && (
-                                <div className="px-5 py-2.5 border-t border-gray-100 dark:border-gray-800 text-center flex-shrink-0">
-                                    <p className="text-xs text-gray-400">
-                                        Press <kbd className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">Esc</kbd> to close · Click outside to dismiss
-                                    </p>
-                                </div>
-                            )}
+                            {/* ── Footer ── */}
+                            <div className="px-5 py-2.5 border-t border-gray-100 dark:border-gray-800 text-center flex-shrink-0">
+                                <p className="text-xs text-gray-400">
+                                    {numPages ? `${numPages} page${numPages > 1 ? 's' : ''} · Scroll to read ·` : ''}
+                                    {' '}Press <kbd className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono">Esc</kbd> to close
+                                </p>
+                            </div>
                         </div>
                     </motion.div>
                 </>
