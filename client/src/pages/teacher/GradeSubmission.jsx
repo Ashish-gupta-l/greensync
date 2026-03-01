@@ -33,7 +33,7 @@ export default function GradeSubmission() {
         if (s.feedback) setFeedback(s.feedback);
         if (s.status === 'graded' || s.status === 'returned') setStatus(s.status);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [submissionId]);
 
@@ -133,24 +133,43 @@ export default function GradeSubmission() {
             animate={{ opacity: 1 }}
             className="bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex-wrap gap-2">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
                 {submission.renamedFileName || submission.originalFileName}
               </span>
-              <a
-                href={submission.fileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 text-xs text-primary-600 hover:underline"
-              >
-                Open in new tab <HiExternalLink />
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}&embedded=true`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition-colors"
+                >
+                  <HiExternalLink /> Open in Google Viewer
+                </a>
+                <a
+                  href={submission.fileUrl}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 transition-colors"
+                >
+                  ⬇ Download PDF
+                </a>
+              </div>
             </div>
+
+            {/* Try Google Docs viewer embed — works even with Cloudinary */}
             <iframe
-              src={`${submission.fileUrl}#toolbar=1&navpanes=0`}
+              src={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}&embedded=true`}
               title="Submission PDF"
-              className="w-full h-[500px] lg:h-[600px] border-0"
+              className="w-full h-[540px] lg:h-[650px] border-0"
+              onError={(e) => { e.target.style.display = 'none'; }}
             />
+
+            {/* Fallback message below the viewer */}
+            <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/10 border-t border-amber-100 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400 text-center">
+              If the PDF doesn't load above, click <strong>"Open in Google Viewer"</strong> or <strong>"Download PDF"</strong>
+            </div>
           </motion.div>
 
           {/* Version history */}
@@ -204,10 +223,9 @@ export default function GradeSubmission() {
               {marks !== '' && (
                 <div className="mt-2 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${
-                      Number(marks) / maxMarks >= 0.7 ? 'bg-green-500' :
-                      Number(marks) / maxMarks >= 0.4 ? 'bg-amber-500' : 'bg-red-500'
-                    }`}
+                    className={`h-full rounded-full transition-all ${Number(marks) / maxMarks >= 0.7 ? 'bg-green-500' :
+                        Number(marks) / maxMarks >= 0.4 ? 'bg-amber-500' : 'bg-red-500'
+                      }`}
                     style={{ width: `${Math.min(100, (Number(marks) / maxMarks) * 100)}%` }}
                   />
                 </div>

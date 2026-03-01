@@ -35,7 +35,7 @@ export default function SubmissionsList() {
         setAssignment(aRes.data.assignment);
         setSubmissions(sRes.data.submissions || []);
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   }, [assignmentId]);
 
@@ -218,9 +218,16 @@ export default function SubmissionsList() {
                     </td>
                     <td className="px-4 py-3">
                       {s.fileUrl ? (
-                        <a href={s.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:underline text-xs">
-                          <HiExternalLink /> View
-                        </a>
+                        <div className="flex flex-col gap-1">
+                          <a
+                            href={`https://docs.google.com/viewer?url=${encodeURIComponent(s.fileUrl)}&embedded=false`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-primary-600 hover:underline text-xs"
+                          >
+                            <HiExternalLink /> View PDF
+                          </a>
+                        </div>
                       ) : '—'}
                     </td>
                     <td className="px-4 py-3">
