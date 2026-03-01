@@ -1,11 +1,27 @@
 const Submission = require('../models/Submission');
 const Assignment = require('../models/Assignment');
 const Notification = require('../models/Notification');
+const cloudinary = require('../config/cloudinary');
 const { uploadToCloudinary } = require('../middleware/upload');
 const { checkPlagiarism } = require('../utils/plagiarism');
 const archiver = require('archiver');
 const https = require('https');
 const http = require('http');
+
+// Generate a signed URL for a private Cloudinary raw file (valid 1 hour)
+const getSignedUrl = (publicId, resourceType = 'raw') => {
+  try {
+    return cloudinary.url(publicId, {
+      resource_type: resourceType,
+      secure: true,
+      sign_url: true,
+      expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour
+      format: 'pdf',
+    });
+  } catch {
+    return null;
+  }
+};
 
 // Helper: emit socket notification
 const emitNotification = (io, userId, notification) => {
@@ -104,7 +120,18 @@ const getSubmissions = async (req, res) => {
       .populate('student', 'name email rollNumber avatar')
       .populate({ path: 'assignment', select: 'title maxMarks deadline subject', populate: { path: 'subject', select: 'name code' } })
       .sort({ submittedAt: -1 });
-    res.json({ success: true, submissions });
+
+    // Generate signed URLs for private Cloudinary files
+    const withSignedUrls = submissions.map(s => {
+      const obj = s.toObject();
+      if (obj.publicId) {
+        const signed = getSignedUrl(obj.publicId, 'raw') || getSignedUrl(obj.publicId, 'image');
+        if (signed) obj.fileUrl = signed;
+      }
+      return obj;
+    });
+
+    res.json({ success: true, submissions: withSignedUrls });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -117,7 +144,15 @@ const getSubmission = async (req, res) => {
       .populate('student', 'name email rollNumber avatar')
       .populate({ path: 'assignment', populate: { path: 'subject', select: 'name code' } });
     if (!submission) return res.status(404).json({ success: false, message: 'Submission not found' });
-    res.json({ success: true, submission });
+
+    // Generate signed URL so teachers can view private Cloudinary files
+    const sub = submission.toObject();
+    if (sub.publicId) {
+      const signed = getSignedUrl(sub.publicId, 'raw') || getSignedUrl(sub.publicId, 'image');
+      if (signed) sub.fileUrl = signed;
+    }
+
+    res.json({ success: true, submission: sub });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
