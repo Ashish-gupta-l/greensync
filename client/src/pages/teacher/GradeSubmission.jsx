@@ -137,38 +137,63 @@ export default function GradeSubmission() {
               <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
                 {submission.renamedFileName || submission.originalFileName}
               </span>
-              <div className="flex items-center gap-2">
-                <a
-                  href={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}&embedded=true`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition-colors"
-                >
-                  <HiExternalLink /> Open in Google Viewer
-                </a>
+              <div className="flex items-center gap-2 flex-wrap">
                 <a
                   href={submission.fileUrl}
-                  download
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 transition-colors"
                 >
-                  ⬇ Download PDF
+                  <HiExternalLink /> Open PDF
+                </a>
+                <a
+                  href={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition-colors"
+                >
+                  <HiExternalLink /> Google Viewer
                 </a>
               </div>
             </div>
 
-            {/* Try Google Docs viewer embed — works even with Cloudinary */}
-            <iframe
-              src={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}&embedded=true`}
-              title="Submission PDF"
-              className="w-full h-[540px] lg:h-[650px] border-0"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-
-            {/* Fallback message below the viewer */}
-            <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/10 border-t border-amber-100 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400 text-center">
-              If the PDF doesn't load above, click <strong>"Open in Google Viewer"</strong> or <strong>"Download PDF"</strong>
+            {/* Embedded viewer — tries Google Docs approach */}
+            <div className="relative w-full h-[580px] lg:h-[680px] bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center gap-4">
+              <div className="text-5xl">📄</div>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                {submission.renamedFileName || 'Submitted PDF'}
+              </p>
+              <p className="text-xs text-gray-400 text-center max-w-xs">
+                Click a button below to view or download the PDF
+              </p>
+              <div className="flex gap-3 flex-wrap justify-center mt-2">
+                <a
+                  href={submission.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors shadow"
+                >
+                  <HiExternalLink /> Open PDF in New Tab
+                </a>
+                <a
+                  href={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow"
+                >
+                  <HiExternalLink /> View in Google Docs
+                </a>
+                <a
+                  href={submission.fileUrl}
+                  download
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-semibold transition-colors"
+                >
+                  ⬇ Download PDF
+                </a>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Submitted: {format(new Date(submission.submittedAt || submission.createdAt), 'MMM d, yyyy h:mm a')}
+              </p>
             </div>
           </motion.div>
 
@@ -224,7 +249,7 @@ export default function GradeSubmission() {
                 <div className="mt-2 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${Number(marks) / maxMarks >= 0.7 ? 'bg-green-500' :
-                        Number(marks) / maxMarks >= 0.4 ? 'bg-amber-500' : 'bg-red-500'
+                      Number(marks) / maxMarks >= 0.4 ? 'bg-amber-500' : 'bg-red-500'
                       }`}
                     style={{ width: `${Math.min(100, (Number(marks) / maxMarks) * 100)}%` }}
                   />

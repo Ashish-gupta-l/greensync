@@ -1,4 +1,4 @@
-const multer     = require('multer');
+const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const { Readable } = require('stream');
 
@@ -26,11 +26,12 @@ const uploadToCloudinary = (buffer, fileName, folder = 'greensync/submissions') 
       {
         folder,
         public_id: fileName.replace('.pdf', ''),
-        resource_type: 'raw',
+        resource_type: 'auto',   // auto-detects PDF correctly
         format: 'pdf',
         use_filename: true,
         unique_filename: false,
         overwrite: true,
+        access_mode: 'public',   // ensures public URL works
       },
       (error, result) => {
         if (error) return reject(error);
@@ -39,7 +40,7 @@ const uploadToCloudinary = (buffer, fileName, folder = 'greensync/submissions') 
     );
 
     const readable = new Readable();
-    readable._read = () => {};
+    readable._read = () => { };
     readable.push(buffer);
     readable.push(null);
     readable.pipe(uploadStream);
