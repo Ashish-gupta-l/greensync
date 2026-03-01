@@ -66,7 +66,9 @@ export const submissionAPI = {
   getOne: (id) => api.get(`/submissions/${id}`),
   grade: (id, data) => api.put(`/submissions/${id}/grade`, data),
   bulkDownload: (aId) => api.get(`/submissions/download/${aId}`, { responseType: 'blob' }),
+  delete: (id) => api.delete(`/submissions/${id}`),
 };
+
 
 // ── Users ─────────────────────────────────────────────────────────────
 export const userAPI = {

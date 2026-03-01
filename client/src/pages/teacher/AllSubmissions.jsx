@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import {
     HiSearch, HiFilter, HiDocumentText, HiEye,
-    HiSortAscending, HiSortDescending, HiDownload
+    HiSortAscending, HiSortDescending, HiTrash, HiExclamationCircle
 } from 'react-icons/hi';
 import api, { submissionAPI } from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import PlagiarismBadge from '../../components/common/PlagiarismBadge';
 import PdfPreviewModal from '../../components/common/PdfPreviewModal';
+import toast from 'react-hot-toast';
 
 const STATUS_OPTIONS = ['all', 'submitted', 'late', 'graded', 'returned'];
 
@@ -26,6 +27,10 @@ export default function AllSubmissions() {
     const [pdfModal, setPdfModal] = useState({ open: false, url: '', title: '', studentName: '' });
     const openPdf = (url, title, studentName) => setPdfModal({ open: true, url, title, studentName });
     const closePdf = () => setPdfModal(m => ({ ...m, open: false }));
+
+    // Delete confirmation
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleting, setDeleting] = useState(false);
 
     const token = localStorage.getItem('gs_token');
     const pdfUrl = (id) => `${api.defaults.baseURL}/submissions/${id}/file?token=${token}`;
@@ -78,7 +83,25 @@ export default function AllSubmissions() {
             return 0;
         });
 
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleting(true);
+        try {
+            await submissionAPI.delete(deleteTarget._id);
+            setSubmissions(prev => prev.filter(s => s._id !== deleteTarget._id));
+            toast.success('Submission deleted successfully');
+            setDeleteTarget(null);
+        } catch {
+            toast.error('Failed to delete submission');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
+
+    // Helper: detect broken/orphaned submission
+    const isBroken = (s) => !s.student?.name || !s.assignment?.title;
 
     return (
         <div className="space-y-6">
@@ -90,6 +113,68 @@ export default function AllSubmissions() {
                 title={pdfModal.title}
                 studentName={pdfModal.studentName}
             />
+
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deleteTarget && (
+                    <>
+                        <motion.div
+                            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            onClick={() => !deleting && setDeleteTarget(null)}
+                        />
+                        <motion.div
+                            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+                            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        >
+                            <div className="pointer-events-auto bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                        <HiTrash className="text-red-600 text-lg" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-gray-900 dark:text-white text-base">Delete Submission?</h3>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">This action cannot be undone.</p>
+                                    </div>
+                                </div>
+
+                                {isBroken(deleteTarget) ? (
+                                    <div className="flex items-start gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4">
+                                        <HiExclamationCircle className="text-red-500 text-lg flex-shrink-0 mt-0.5" />
+                                        <p className="text-xs text-red-700 dark:text-red-400">
+                                            <strong>Broken submission</strong> — student or assignment data is missing. This is safe to delete.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 mb-4">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white">{deleteTarget.student?.name}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{deleteTarget.assignment?.title}</p>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setDeleteTarget(null)}
+                                        disabled={deleting}
+                                        className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleDelete}
+                                        disabled={deleting}
+                                        className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                                    >
+                                        {deleting ? <Spinner size="sm" color="white" /> : <HiTrash />}
+                                        {deleting ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
@@ -170,6 +255,7 @@ export default function AllSubmissions() {
                                         { label: 'Plagiarism', field: 'plagiarism' },
                                         { label: 'File', field: null },
                                         { label: 'Action', field: null },
+                                        { label: '', field: null }, // delete col
                                     ].map(({ label, field }) => (
                                         <th
                                             key={label}
@@ -187,8 +273,10 @@ export default function AllSubmissions() {
                                         key={s._id}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
                                         transition={{ delay: i * 0.015 }}
-                                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                                        className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${isBroken(s) ? 'bg-red-50/40 dark:bg-red-900/10' : ''
+                                            }`}
                                     >
                                         {/* Student */}
                                         <td className="px-4 py-3">
@@ -241,12 +329,26 @@ export default function AllSubmissions() {
                                         </td>
                                         {/* Action */}
                                         <td className="px-4 py-3">
-                                            <Link
-                                                to={`/teacher/submissions/${s._id}/grade`}
-                                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors whitespace-nowrap"
+                                            {!isBroken(s) ? (
+                                                <Link
+                                                    to={`/teacher/submissions/${s._id}/grade`}
+                                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors whitespace-nowrap"
+                                                >
+                                                    Grade
+                                                </Link>
+                                            ) : (
+                                                <span className="text-xs text-red-400 italic">Broken</span>
+                                            )}
+                                        </td>
+                                        {/* Delete */}
+                                        <td className="px-3 py-3">
+                                            <button
+                                                onClick={() => setDeleteTarget(s)}
+                                                title="Delete submission"
+                                                className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
                                             >
-                                                Grade
-                                            </Link>
+                                                <HiTrash className="text-sm" />
+                                            </button>
                                         </td>
                                     </motion.tr>
                                 ))}
@@ -290,7 +392,15 @@ export default function AllSubmissions() {
                                     >
                                         <HiEye /> View PDF
                                     </button>
-                                    <Link to={`/teacher/submissions/${s._id}/grade`} className="text-xs text-primary-700 font-semibold">Grade →</Link>
+                                    {!isBroken(s) && (
+                                        <Link to={`/teacher/submissions/${s._id}/grade`} className="text-xs text-primary-700 font-semibold">Grade →</Link>
+                                    )}
+                                    <button
+                                        onClick={() => setDeleteTarget(s)}
+                                        className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 font-semibold"
+                                    >
+                                        <HiTrash /> Delete
+                                    </button>
                                 </div>
                             </motion.div>
                         ))}

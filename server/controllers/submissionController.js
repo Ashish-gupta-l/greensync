@@ -319,4 +319,34 @@ const serveFile = async (req, res) => {
   }
 };
 
-module.exports = { createSubmission, getMySubmissions, getSubmissions, getSubmission, gradeSubmission, bulkDownload, serveFile };
+// DELETE /api/submissions/:id  (teacher or admin)
+const deleteSubmission = async (req, res) => {
+  try {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) return res.status(404).json({ success: false, message: 'Submission not found' });
+
+    // Delete file from Cloudinary if publicId exists
+    if (submission.publicId) {
+      try {
+        await cloudinary.uploader.destroy(submission.publicId, { resource_type: 'image' });
+      } catch (e) {
+        // Try raw resource_type as fallback
+        try { await cloudinary.uploader.destroy(submission.publicId, { resource_type: 'raw' }); } catch (_) { }
+      }
+      // Also delete previous versions
+      for (const v of (submission.previousVersions || [])) {
+        if (v.publicId) {
+          try { await cloudinary.uploader.destroy(v.publicId, { resource_type: 'image' }); } catch (_) { }
+        }
+      }
+    }
+
+    await Submission.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Submission deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { createSubmission, getMySubmissions, getSubmissions, getSubmission, gradeSubmission, bulkDownload, serveFile, deleteSubmission };
+
