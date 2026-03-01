@@ -33,6 +33,8 @@ export default function AllSubmissions() {
     const [deleting, setDeleting] = useState(false);
 
     const token = localStorage.getItem('gs_token');
+    // Note: use s.fileUrl (direct Cloudinary URL) for PDF modal — server proxy unreliable
+    // pdfUrl kept only for bulkDownload backward compat
     const pdfUrl = (id) => `${api.defaults.baseURL}/submissions/${id}/file?token=${token}`;
 
     useEffect(() => {
@@ -321,8 +323,9 @@ export default function AllSubmissions() {
                                         {/* File */}
                                         <td className="px-4 py-3">
                                             <button
-                                                onClick={() => openPdf(pdfUrl(s._id), s.assignment?.title, s.student?.name)}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                                                onClick={() => openPdf(s.fileUrl, s.assignment?.title, s.student?.name)}
+                                                disabled={!s.fileUrl}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                             >
                                                 <HiEye className="text-sm" /> View PDF
                                             </button>
@@ -387,8 +390,9 @@ export default function AllSubmissions() {
                                 </div>
                                 <div className="flex gap-3">
                                     <button
-                                        onClick={() => openPdf(pdfUrl(s._id), s.assignment?.title, s.student?.name)}
-                                        className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-semibold"
+                                        onClick={() => openPdf(s.fileUrl, s.assignment?.title, s.student?.name)}
+                                        disabled={!s.fileUrl}
+                                        className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-semibold disabled:opacity-40"
                                     >
                                         <HiEye /> View PDF
                                     </button>
