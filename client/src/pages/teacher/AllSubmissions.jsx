@@ -6,7 +6,7 @@ import {
     HiSearch, HiFilter, HiDocumentText, HiExternalLink,
     HiSortAscending, HiSortDescending, HiDownload
 } from 'react-icons/hi';
-import { submissionAPI } from '../../services/api';
+import api, { submissionAPI } from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import PlagiarismBadge from '../../components/common/PlagiarismBadge';
@@ -20,6 +20,9 @@ export default function AllSubmissions() {
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('submittedAt');
     const [sortDir, setSortDir] = useState('desc');
+
+    const token = localStorage.getItem('gs_token');
+    const pdfUrl = (id) => `${api.defaults.baseURL}/submissions/${id}/file?token=${token}`;
 
     useEffect(() => {
         submissionAPI.getAll()           // no params → returns ALL submissions
@@ -215,9 +218,7 @@ export default function AllSubmissions() {
                                         <td className="px-4 py-3"><PlagiarismBadge score={s.plagiarismScore} /></td>
                                         {/* File */}
                                         <td className="px-4 py-3">
-                                            {s.fileUrl
-                                                ? <a href={s.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:underline text-xs"><HiExternalLink /> View</a>
-                                                : '—'}
+                                            <a href={pdfUrl(s._id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:underline text-xs"><HiExternalLink /> View</a>
                                         </td>
                                         {/* Action */}
                                         <td className="px-4 py-3">
@@ -264,11 +265,9 @@ export default function AllSubmissions() {
                                     <PlagiarismBadge score={s.plagiarismScore} />
                                 </div>
                                 <div className="flex gap-3">
-                                    {s.fileUrl && (
-                                        <a href={s.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-primary-600 flex items-center gap-0.5">
-                                            View PDF <HiExternalLink />
-                                        </a>
-                                    )}
+                                    <a href={pdfUrl(s._id)} target="_blank" rel="noreferrer" className="text-xs text-primary-600 flex items-center gap-0.5">
+                                        View PDF <HiExternalLink />
+                                    </a>
                                     <Link to={`/teacher/submissions/${s._id}/grade`} className="text-xs text-primary-700 font-semibold">Grade →</Link>
                                 </div>
                             </motion.div>

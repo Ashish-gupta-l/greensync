@@ -26,7 +26,7 @@ const uploadToCloudinary = (buffer, fileName, folder = 'greensync/submissions') 
       {
         folder,
         public_id: fileName.replace('.pdf', ''),
-        resource_type: 'auto',   // auto-detects PDF correctly
+        resource_type: 'raw',    // store as raw file so PDF URL works directly
         format: 'pdf',
         use_filename: true,
         unique_filename: false,

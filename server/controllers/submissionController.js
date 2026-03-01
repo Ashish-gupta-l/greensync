@@ -231,4 +231,92 @@ const bulkDownload = async (req, res) => {
   }
 };
 
-module.exports = { createSubmission, getMySubmissions, getSubmissions, getSubmission, gradeSubmission, bulkDownload };
+// GET /api/submissions/:id/file  (proxy PDF to browser)
+// Supports token via Authorization header OR ?token= query param (for <a> new-tab opens)
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+// Helper: HTTP GET that follows redirects (up to 5 hops)
+const fetchUrl = (url, maxRedirects = 5) => {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https') ? https : http;
+    protocol.get(url, (response) => {
+      if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location && maxRedirects > 0) {
+        response.resume();
+        return resolve(fetchUrl(response.headers.location, maxRedirects - 1));
+      }
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        resolve(response);
+      } else {
+        response.resume();
+        reject(new Error(`HTTP ${response.statusCode}`));
+      }
+    }).on('error', reject);
+  });
+};
+
+const serveFile = async (req, res) => {
+  try {
+    // Authenticate: check header first, then query param
+    let token = req.headers.authorization?.startsWith('Bearer')
+      ? req.headers.authorization.split(' ')[1]
+      : req.query.token;
+
+    if (!token) return res.status(401).json({ success: false, message: 'Not authorized' });
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('_id');
+      if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+    } catch {
+      return res.status(401).json({ success: false, message: 'Token invalid or expired' });
+    }
+
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) return res.status(404).json({ success: false, message: 'Submission not found' });
+
+    // Build a list of URLs to try (stored URL first, then reconstructed variants)
+    const urlsToTry = [submission.fileUrl];
+    if (submission.publicId) {
+      const pid = submission.publicId;
+      // image type with pdf format
+      urlsToTry.push(cloudinary.url(pid, { resource_type: 'image', secure: true, format: 'pdf' }));
+      // raw type with pdf format
+      urlsToTry.push(cloudinary.url(pid, { resource_type: 'raw', secure: true, format: 'pdf' }));
+      // image type without explicit format (public_id may already include extension)
+      urlsToTry.push(cloudinary.url(pid, { resource_type: 'image', secure: true }));
+      // raw type without explicit format
+      urlsToTry.push(cloudinary.url(pid, { resource_type: 'raw', secure: true }));
+    }
+
+    // Remove duplicates
+    const uniqueUrls = [...new Set(urlsToTry.filter(Boolean))];
+
+    let pdfStream = null;
+    for (const url of uniqueUrls) {
+      try {
+        pdfStream = await fetchUrl(url);
+        console.log(`[serveFile] OK: ${url}`);
+        break;
+      } catch (err) {
+        console.log(`[serveFile] FAIL ${url}: ${err.message}`);
+        continue;
+      }
+    }
+
+    if (!pdfStream) {
+      return res.status(404).json({ success: false, message: 'PDF file not found on storage' });
+    }
+
+    const fileName = submission.renamedFileName || submission.originalFileName || 'submission.pdf';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    pdfStream.pipe(res);
+  } catch (error) {
+    console.error('[serveFile] Error:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { createSubmission, getMySubmissions, getSubmissions, getSubmission, gradeSubmission, bulkDownload, serveFile };

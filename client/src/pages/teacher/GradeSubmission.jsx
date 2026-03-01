@@ -6,7 +6,7 @@ import {
   HiArrowLeft, HiStar, HiAnnotation, HiExternalLink,
   HiCheckCircle, HiDocumentText, HiClock
 } from 'react-icons/hi';
-import { submissionAPI } from '../../services/api';
+import api, { submissionAPI } from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import PlagiarismBadge from '../../components/common/PlagiarismBadge';
@@ -23,6 +23,9 @@ export default function GradeSubmission() {
   const [marks, setMarks] = useState('');
   const [feedback, setFeedback] = useState('');
   const [status, setStatus] = useState('graded');
+
+  const token = localStorage.getItem('gs_token');
+  const pdfUrl = (id) => `${api.defaults.baseURL}/submissions/${id}/file?token=${token}`;
 
   useEffect(() => {
     submissionAPI.getOne(submissionId)
@@ -139,20 +142,12 @@ export default function GradeSubmission() {
               </span>
               <div className="flex items-center gap-2 flex-wrap">
                 <a
-                  href={submission.fileUrl}
+                  href={pdfUrl(submission._id)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 transition-colors"
                 >
                   <HiExternalLink /> Open PDF
-                </a>
-                <a
-                  href={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition-colors"
-                >
-                  <HiExternalLink /> Google Viewer
                 </a>
               </div>
             </div>
@@ -168,7 +163,7 @@ export default function GradeSubmission() {
               </p>
               <div className="flex gap-3 flex-wrap justify-center mt-2">
                 <a
-                  href={submission.fileUrl}
+                  href={pdfUrl(submission._id)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors shadow"
@@ -176,15 +171,7 @@ export default function GradeSubmission() {
                   <HiExternalLink /> Open PDF in New Tab
                 </a>
                 <a
-                  href={`https://docs.google.com/viewer?url=${encodeURIComponent(submission.fileUrl)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow"
-                >
-                  <HiExternalLink /> View in Google Docs
-                </a>
-                <a
-                  href={submission.fileUrl}
+                  href={pdfUrl(submission._id)}
                   download
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-sm font-semibold transition-colors"
                 >

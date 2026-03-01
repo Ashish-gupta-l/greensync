@@ -6,7 +6,7 @@ import {
   HiArrowLeft, HiDownload, HiDocumentText, HiExternalLink,
   HiSortAscending, HiSortDescending, HiFilter
 } from 'react-icons/hi';
-import { assignmentAPI, submissionAPI } from '../../services/api';
+import api, { assignmentAPI, submissionAPI } from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import PlagiarismBadge from '../../components/common/PlagiarismBadge';
@@ -25,6 +25,9 @@ export default function SubmissionsList() {
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('submittedAt');
   const [sortDir, setSortDir] = useState('desc');
+
+  const token = localStorage.getItem('gs_token');
+  const pdfUrl = (id) => `${api.defaults.baseURL}/submissions/${id}/file?token=${token}`;
 
   useEffect(() => {
     Promise.all([
@@ -217,18 +220,14 @@ export default function SubmissionsList() {
                       <PlagiarismBadge score={s.plagiarismScore} />
                     </td>
                     <td className="px-4 py-3">
-                      {s.fileUrl ? (
-                        <div className="flex flex-col gap-1">
-                          <a
-                            href={`https://docs.google.com/viewer?url=${encodeURIComponent(s.fileUrl)}&embedded=false`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-primary-600 hover:underline text-xs"
-                          >
-                            <HiExternalLink /> View PDF
-                          </a>
-                        </div>
-                      ) : '—'}
+                      <a
+                        href={pdfUrl(s._id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-primary-600 hover:underline text-xs"
+                      >
+                        <HiExternalLink /> View PDF
+                      </a>
                     </td>
                     <td className="px-4 py-3">
                       <Link
@@ -272,11 +271,9 @@ export default function SubmissionsList() {
                   <PlagiarismBadge score={s.plagiarismScore} />
                 </div>
                 <div className="flex gap-2">
-                  {s.fileUrl && (
-                    <a href={s.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-primary-600 flex items-center gap-0.5">
-                      View PDF <HiExternalLink />
-                    </a>
-                  )}
+                  <a href={pdfUrl(s._id)} target="_blank" rel="noreferrer" className="text-xs text-primary-600 flex items-center gap-0.5">
+                    View PDF <HiExternalLink />
+                  </a>
                   <Link
                     to={`/teacher/submissions/${s._id}/grade`}
                     className="text-xs text-primary-700 font-semibold"
