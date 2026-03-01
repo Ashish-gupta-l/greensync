@@ -275,21 +275,17 @@ const serveFile = async (req, res) => {
     const submission = await Submission.findById(req.params.id);
     if (!submission) return res.status(404).json({ success: false, message: 'Submission not found' });
 
-    // Build a list of URLs to try (stored URL first, then reconstructed variants)
-    const urlsToTry = [submission.fileUrl];
+    // Build URL list — 'raw' first (files uploaded as resource_type:'raw')
+    const urlsToTry = [];
+    if (submission.fileUrl) urlsToTry.push(submission.fileUrl);
     if (submission.publicId) {
       const pid = submission.publicId;
-      // image type with pdf format
-      urlsToTry.push(cloudinary.url(pid, { resource_type: 'image', secure: true, format: 'pdf' }));
-      // raw type with pdf format
-      urlsToTry.push(cloudinary.url(pid, { resource_type: 'raw', secure: true, format: 'pdf' }));
-      // image type without explicit format (public_id may already include extension)
-      urlsToTry.push(cloudinary.url(pid, { resource_type: 'image', secure: true }));
-      // raw type without explicit format
       urlsToTry.push(cloudinary.url(pid, { resource_type: 'raw', secure: true }));
+      urlsToTry.push(cloudinary.url(pid, { resource_type: 'raw', secure: true, format: 'pdf' }));
+      urlsToTry.push(cloudinary.url(pid, { resource_type: 'image', secure: true, format: 'pdf' }));
+      urlsToTry.push(cloudinary.url(pid, { resource_type: 'image', secure: true }));
     }
 
-    // Remove duplicates
     const uniqueUrls = [...new Set(urlsToTry.filter(Boolean))];
 
     let pdfStream = null;
