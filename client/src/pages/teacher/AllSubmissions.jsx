@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import {
-    HiSearch, HiFilter, HiDocumentText, HiExternalLink,
+    HiSearch, HiFilter, HiDocumentText, HiEye,
     HiSortAscending, HiSortDescending, HiDownload
 } from 'react-icons/hi';
 import api, { submissionAPI } from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import Badge from '../../components/ui/Badge';
 import PlagiarismBadge from '../../components/common/PlagiarismBadge';
+import PdfPreviewModal from '../../components/common/PdfPreviewModal';
 
 const STATUS_OPTIONS = ['all', 'submitted', 'late', 'graded', 'returned'];
 
@@ -20,6 +21,11 @@ export default function AllSubmissions() {
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('submittedAt');
     const [sortDir, setSortDir] = useState('desc');
+
+    // PDF preview modal
+    const [pdfModal, setPdfModal] = useState({ open: false, url: '', title: '', studentName: '' });
+    const openPdf = (url, title, studentName) => setPdfModal({ open: true, url, title, studentName });
+    const closePdf = () => setPdfModal(m => ({ ...m, open: false }));
 
     const token = localStorage.getItem('gs_token');
     const pdfUrl = (id) => `${api.defaults.baseURL}/submissions/${id}/file?token=${token}`;
@@ -76,6 +82,14 @@ export default function AllSubmissions() {
 
     return (
         <div className="space-y-6">
+            {/* PDF Preview Modal */}
+            <PdfPreviewModal
+                isOpen={pdfModal.open}
+                onClose={closePdf}
+                pdfUrl={pdfModal.url}
+                title={pdfModal.title}
+                studentName={pdfModal.studentName}
+            />
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
@@ -218,7 +232,12 @@ export default function AllSubmissions() {
                                         <td className="px-4 py-3"><PlagiarismBadge score={s.plagiarismScore} /></td>
                                         {/* File */}
                                         <td className="px-4 py-3">
-                                            <a href={pdfUrl(s._id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:underline text-xs"><HiExternalLink /> View</a>
+                                            <button
+                                                onClick={() => openPdf(pdfUrl(s._id), s.assignment?.title, s.student?.name)}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                                            >
+                                                <HiEye className="text-sm" /> View PDF
+                                            </button>
                                         </td>
                                         {/* Action */}
                                         <td className="px-4 py-3">
@@ -265,9 +284,12 @@ export default function AllSubmissions() {
                                     <PlagiarismBadge score={s.plagiarismScore} />
                                 </div>
                                 <div className="flex gap-3">
-                                    <a href={pdfUrl(s._id)} target="_blank" rel="noreferrer" className="text-xs text-primary-600 flex items-center gap-0.5">
-                                        View PDF <HiExternalLink />
-                                    </a>
+                                    <button
+                                        onClick={() => openPdf(pdfUrl(s._id), s.assignment?.title, s.student?.name)}
+                                        className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-semibold"
+                                    >
+                                        <HiEye /> View PDF
+                                    </button>
                                     <Link to={`/teacher/submissions/${s._id}/grade`} className="text-xs text-primary-700 font-semibold">Grade →</Link>
                                 </div>
                             </motion.div>
